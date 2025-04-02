@@ -39,6 +39,14 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddLogging(logging =>
+{
+    logging.AddConsole();
+    logging.SetMinimumLevel(LogLevel.Debug);
+});
+
+
+
 builder.Services.Configure<IdentityOptions>(options =>
 {
     options.Password.RequireDigit = false;
@@ -58,6 +66,15 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 var app = builder.Build();
+
+// ✅ Apply migrations automatically on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    dbContext.Database.Migrate();
+}
+
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("AllowAll"); // Enable CORS
