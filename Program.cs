@@ -58,10 +58,14 @@ builder.Services.Configure<IdentityOptions>(options =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader());
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:4000") // Your frontend URL
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
 });
 
 builder.Services.AddControllers();
@@ -74,9 +78,14 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"Incoming Request: {context.Request.Method} {context.Request.Path} {context.Request}");
+    await next.Invoke();
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("AllowAll"); // Enable CORS
+app.UseCors("AllowFrontend"); // Enable CORS
 app.MapControllers();
 app.Run();

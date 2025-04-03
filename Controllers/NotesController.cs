@@ -9,9 +9,9 @@ using System.Security.Claims;
 
 namespace NotesManager.Controllers
 {
-    [Authorize]
-    [ApiController]
-    [Route("api/[controller]")]
+[Authorize]
+[ApiController]
+[Route("api/notes")] 
     public class NotesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -22,47 +22,50 @@ namespace NotesManager.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetNotes([FromQuery] string search, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? endDate)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var query = _context.Notes.Where(n => n.UserId == userId);
+public async Task<IActionResult> GetNotes([FromQuery] string? search = "", [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? endDate = null)
+{
+    Console.WriteLine("🚀 Received API request!");
+    Console.WriteLine($"🔹 search: {search}");
+    Console.WriteLine($"🔹 fromDate: {fromDate}");
+    Console.WriteLine($"🔹 endDate: {endDate}");
 
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(n => n.Title.Contains(search));
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (userId == null)
+    {
+        Console.WriteLine("❌ Unauthorized request.");
+        return Unauthorized();
+    }
 
-            if (fromDate.HasValue)
-                query = query.Where(n => n.CreatedAt >= fromDate.Value);
+    var query = _context.Notes.Where(n => n.UserId == userId);
+    if (!string.IsNullOrWhiteSpace(search)) // 👈 Allow empty search
+        query = query.Where(n => n.Title.Contains(search));
+    if (fromDate.HasValue)
+        query = query.Where(n => n.CreatedAt >= fromDate.Value);
+    if (endDate.HasValue)
+        query = query.Where(n => n.CreatedAt <= endDate.Value);
 
-            if (endDate.HasValue)
-                query = query.Where(n => n.CreatedAt <= endDate.Value);
+    var notes = await query.OrderByDescending(n => n.CreatedAt)
+        .Select(n => new NoteDto { Id = n.Id, Title = n.Title, Description = n.Description, CreatedAt = n.CreatedAt })
+        .ToListAsync();
 
-            var notes = await query.OrderByDescending(n => n.CreatedAt)
-                .Select(n => new NoteDto
-                {
-                    Id = n.Id,
-                    Title = n.Title,
-                    Description = n.Description,
-                    CreatedAt = n.CreatedAt
-                }).ToListAsync();
-
-            return Ok(notes);
-        }
+    return Ok(notes);
+}
 
         [HttpPost]
-        public async Task<IActionResult> Create(CreateNoteDto dto)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var note = new Note
-            {
-                Title = dto.Title,
-                Description = dto.Description,
-                UserId = userId,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.Notes.Add(note);
-            await _context.SaveChangesAsync();
-            return Ok(note);
-        }
+public async Task<IActionResult> Create([FromBody] CreateNoteDto dto) // Add [FromBody]
+{
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var note = new Note
+    {
+        Title = dto.Title,
+        Description = dto.Description,
+        UserId = userId,
+        CreatedAt = DateTime.UtcNow
+    };
+    _context.Notes.Add(note);
+    await _context.SaveChangesAsync();
+    return Ok(note);
+}
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdateNoteDto dto)
