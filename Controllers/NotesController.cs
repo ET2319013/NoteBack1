@@ -37,7 +37,7 @@ public async Task<IActionResult> GetNotes([FromQuery] string? search = "", [From
     }
 
     var query = _context.Notes.Where(n => n.UserId == userId);
-    if (!string.IsNullOrWhiteSpace(search)) // 👈 Allow empty search
+    if (!string.IsNullOrWhiteSpace(search)) //  Allow empty search
         query = query.Where(n => n.Title.Contains(search));
     if (fromDate.HasValue)
         query = query.Where(n => n.CreatedAt >= fromDate.Value);
